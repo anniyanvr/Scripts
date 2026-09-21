@@ -1,0 +1,16 @@
+name: Debian
+on: [push]
+
+jobs:
+  Debian13:
+    runs-on: ubuntu-24.04
+    container: debian:13
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/deploy-debian-13
+  Debian12:
+    runs-on: ubuntu-24.04
+    container: debian:12
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/deploy-debian-12

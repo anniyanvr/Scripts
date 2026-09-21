@@ -32,20 +32,61 @@ spec:
               - key: app
                 operator: In
                 values:
-                - ant-media
+                - ant-media-edge
+                - ant-media-origin
             topologyKey: "kubernetes.io/hostname"
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: ant-media-server
         imagePullPolicy: IfNotPresent # change this value accordingly. It can be Never, Always or IfNotPresent
-        image: antmedia/enterprise:2.5.1 #change this value according to your image.
+        image: antmedia/enterprise:latest #change this value according to your image.
 # By default, mongodb deployment is used. If you're using mongodb somewhere else, specify it  with server url(-h) below. 
 # You may also need to add -u and -p parameters for
 # specifying mongodb username and passwords respectively         
         args: ["-g", "true", "-s", "true", "-r", "true", "-m", "cluster", "-h", "mongo"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        volumeMounts:
+        - mountPath: /tmp
+          name: temp-volume
+        - mountPath: /var/log/antmedia/
+          name: log-storage
+          subPath: $(POD_NAME)
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - chmod 1777 /tmp
+        livenessProbe:
+          httpGet:
+            path: / 
+            port: 5080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5080
+          initialDelaySeconds: 30
+          periodSeconds: 10
         resources:
           requests:
              cpu: 4000m
+      volumes:
+      - hostPath:
+          path: /temp-data
+          type: DirectoryOrCreate
+        name: temp-volume
+      - hostPath:
+          path: /mnt/logs/antmedia
+          type: DirectoryOrCreate
+        name: log-storage
  #     imagePullSecrets:
  #     - name: docker

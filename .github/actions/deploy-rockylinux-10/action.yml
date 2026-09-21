@@ -1,0 +1,29 @@
+name: Deploy on Rocky Linux 10
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Install Ant Media Server
+      env:
+        JAVA_TOOL_OPTIONS: "-XX:-UseContainerSupport -Djava.awt.headless=true"
+      shell: bash
+      run: |
+        echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+        yum -y install wget which findutils which crontabs unzip
+        set -euo pipefail
+        release_json=$(curl -fsSL --retry 3 https://api.github.com/repos/ant-media/Ant-Media-Server/releases/latest)
+        download_url=$(printf '%s\n' "$release_json" | grep '"browser_download_url"' | cut -d '"' -f 4 | grep -E '/ant-media-server-community-[^/]+\.zip$')
+        if [[ -z "$download_url" || "$download_url" == *$'\n'* ]]; then
+          echo "Expected exactly one Community ZIP in the latest Ant Media Server release."
+          exit 1
+        fi
+        echo "Downloading latest Ant Media Server release: $download_url"
+        curl -fL --retry 3 -o ant-media-server-community.zip "$download_url"
+        bash ./install_ant-media-server.sh -i ant-media-server-community.zip -s false
+        /usr/local/antmedia/antmedia start
+        sleep 30
+        if [ $(cat /usr/local/antmedia/log/ant-media-server.log | grep "LiveApp started" | wc -l | xargs) -eq 0 ]; then 
+          echo "LiveApp started log does not exist. Check the logs above"
+          exit 1;
+        fi;
